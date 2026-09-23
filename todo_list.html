@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modern Todo List</title>
+    <!-- Include Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for smooth transitions */
+        .task-item {
+            transition: all 0.3s ease-in-out;
+        }
+        .task-item.completed span {
+            text-decoration: line-through;
+            color: #9ca3af; /* Tailwind gray-400 */
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4 font-sans text-gray-800">
+
+    <div class="bg-white w-full max-w-md rounded-xl shadow-xl overflow-hidden">
+        <!-- Header -->
+        <div class="bg-blue-600 text-white p-6">
+            <h1 class="text-3xl font-bold mb-1">My Tasks</h1>
+            <p class="text-blue-200 text-sm" id="date-display">Today</p>
+        </div>
+
+        <!-- Input Area -->
+        <div class="p-6 pb-2">
+            <form id="todo-form" class="flex gap-2">
+                <input 
+                    type="text" 
+                    id="todo-input" 
+                    class="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                    placeholder="What needs to be done?"
+                    autocomplete="off"
+                >
+                <button 
+                    type="submit" 
+                    class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200 ease-in-out flex items-center justify-center"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                    </svg>
+                </button>
+            </form>
+        </div>
+
+        <!-- Task List -->
+        <div class="p-6 pt-2">
+            <ul id="todo-list" class="space-y-3">
+                <!-- Tasks will be injected here by JavaScript -->
+            </ul>
+            
+            <!-- Empty State -->
+            <div id="empty-state" class="text-center py-8 hidden">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                </svg>
+                <p class="text-gray-500">You're all caught up!</p>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="bg-gray-50 px-6 py-4 border-t border-gray-100 flex justify-between items-center text-sm text-gray-500">
+            <span id="task-count">0 tasks left</span>
+            <button id="clear-completed" class="hover:text-blue-600 transition-colors">Clear completed</button>
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const form = document.getElementById('todo-form');
+        const input = document.getElementById('todo-input');
+        const todoList = document.getElementById('todo-list');
+        const emptyState = document.getElementById('empty-state');
+        const taskCountDisplay = document.getElementById('task-count');
+        const clearCompletedBtn = document.getElementById('clear-completed');
+        const dateDisplay = document.getElementById('date-display');
+
+        // State array to hold tasks
+        let tasks = [];
+
+        // Set today's date
+        const options = { weekday: 'long', month: 'short', day: 'numeric' };
+        dateDisplay.innerText = new Date().toLocaleDateString('en-US', options);
+
+        // Load tasks from Local Storage
+        function loadTasks() {
+            const savedTasks = localStorage.getItem('todo-tasks');
+            if (savedTasks) {
+                try {
+                    tasks = JSON.parse(savedTasks);
+                } catch (e) {
+                    console.error("Error parsing tasks from local storage", e);
+                    tasks = [];
+                }
+            }
+            renderTasks();
+        }
+
+        // Save tasks to Local Storage
+        function saveTasks() {
+            localStorage.setItem('todo-tasks', JSON.stringify(tasks));
+            renderTasks();
+        }
+
+        // Add a new task
+        function addTask(text) {
+            const newTask = {
+                id: Date.now().toString(),
+                text: text,
+                completed: false
+            };
+            tasks.push(newTask);
+            saveTasks();
+        }
+
+        // Toggle task completion
+        function toggleTask(id) {
+            tasks = tasks.map(task => {
+                if (task.id === id) {
+                    return { ...task, completed: !task.completed };
+                }
+                return task;
+            });
+            saveTasks();
+        }
+
+        // Delete a task
+        function deleteTask(id) {
+            tasks = tasks.filter(task => task.id !== id);
+            saveTasks();
+        }
+
+        // Clear all completed tasks
+        function clearCompleted() {
+            tasks = tasks.filter(task => !task.completed);
+            saveTasks();
+        }
+
+        // Render tasks to the DOM
+        function renderTasks() {
+            // Clear current list
+            todoList.innerHTML = '';
+            
+            // Handle empty state
+            if (tasks.length === 0) {
+                emptyState.classList.remove('hidden');
+                todoList.classList.add('hidden');
+            } else {
+                emptyState.classList.add('hidden');
+                todoList.classList.remove('hidden');
+            }
+
+            // Count incomplete tasks
+            const incompleteCount = tasks.filter(t => !t.completed).length;
+            taskCountDisplay.innerText = `${incompleteCount} task${incompleteCount !== 1 ? 's' : ''} left`;
+
+            // Create list items
+            tasks.forEach(task => {
+                const li = document.createElement('li');
+                li.className = `task-item flex items-center justify-between p-3 rounded-lg border border-gray-100 hover:bg-gray-50 ${task.completed ? 'completed bg-gray-50' : 'bg-white'}`;
+                
+                // Left side (checkbox + text)
+                const leftDiv = document.createElement('div');
+                leftDiv.className = 'flex items-center flex-1 cursor-pointer';
+                leftDiv.onclick = () => toggleTask(task.id);
+
+                // Custom Checkbox UI
+                const checkboxContainer = document.createElement('div');
+                checkboxContainer.className = `w-5 h-5 rounded-full border-2 flex items-center justify-center mr-3 transition-colors ${task.completed ? 'bg-blue-500 border-blue-500' : 'border-gray-300'}`;
+                
+                if (task.completed) {
+                    checkboxContainer.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-white" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>`;
+                }
+
+                const textSpan = document.createElement('span');
+                textSpan.innerText = task.text;
+                textSpan.className = 'flex-1 break-all';
+
+                leftDiv.appendChild(checkboxContainer);
+                leftDiv.appendChild(textSpan);
+
+                // Delete button
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'text-gray-400 hover:text-red-500 p-1 transition-colors';
+                deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>`;
+                deleteBtn.onclick = (e) => {
+                    e.stopPropagation(); // Prevent triggering the toggle
+                    deleteTask(task.id);
+                };
+
+                li.appendChild(leftDiv);
+                li.appendChild(deleteBtn);
+                todoList.appendChild(li);
+            });
+        }
+
+        // Event Listeners
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const text = input.value.trim();
+            if (text !== '') {
+                addTask(text);
+                input.value = ''; // Clear input
+            }
+        });
+
+        clearCompletedBtn.addEventListener('click', clearCompleted);
+
+        // Initialize app
+        loadTasks();
+
+    </script>
+</body>
+</html>
